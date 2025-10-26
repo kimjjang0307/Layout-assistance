@@ -1,5 +1,5 @@
 {
-  "name": "레이아웃_v05",
+  "name": "레이아웃_v06",
   "description": "텍스트를 입력하면 Gemini AI가 응답을 생성해주는 간단한 웹 애플리케이션입니다.",
   "requestFramePermissions": []
 }
