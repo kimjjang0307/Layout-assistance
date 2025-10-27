@@ -7,6 +7,10 @@ import type { PoseImage, PerspectiveData, HistoryItem, ChatMessage, CameraOption
 import { GithubIcon, MagicWandIcon, CloseIcon, TrashIcon, ResetIcon, DownloadIcon, ZoomInIcon, ZoomOutIcon, ExpandIcon, CompareIcon, UserIcon as UserIconSingle, UsersIcon, SendIcon, LockIcon, UnlockIcon } from './components/Icons';
 import { SceneAnalysis } from './components/SceneAnalysis';
 
+interface AppProps {
+  userMode: 'master' | 'guest'; // Add userMode prop
+}
+
 const LoadingOverlay: React.FC = () => (
   <div 
     className="fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50 text-center p-4" 
@@ -562,7 +566,7 @@ const compressImageForStorage = (imageUrl: string, quality = 0.9, maxSize = 1280
 };
 
 
-export default function App() {
+export default function App({ userMode }: AppProps) {
   const [poseImages, setPoseImages] = useState<PoseImage[]>([]);
   const [outputStyle, setOutputStyle] = useState<'genga_style' | 'clean_lineart'>('genga_style');
   const [workMode, setWorkMode] = useState<'single' | 'multi'>('single');
@@ -1118,7 +1122,7 @@ export default function App() {
       <header className="flex-shrink-0 flex justify-between items-center p-4 border-b border-neutral-700/70 bg-[#2f2f2f] z-10">
         <h1 className="text-xl sm:text-2xl font-semibold text-neutral-100 tracking-tight flex items-center gap-3">
           <MagicWandIcon />
-          AI 애니메이션 레이아웃 어시스턴트
+          AI 애니메이션 레이아웃 어시스턴트 <span className="text-sm font-normal text-neutral-400">({userMode === 'master' ? '마스터 모드' : '게스트 모드'})</span>
         </h1>
         <div className="flex items-center gap-4">
            <button

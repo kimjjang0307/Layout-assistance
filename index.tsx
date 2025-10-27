@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -11,15 +9,19 @@ if (!rootElement) {
 }
 
 const RootComponent: React.FC = () => {
-  const [showSplash, setShowSplash] = useState(true);
+  const [userMode, setUserMode] = useState<'master' | 'guest' | null>(null);
 
-  const handleStart = () => {
-    setShowSplash(false);
+  const handleSelectMode = (mode: 'master' | 'guest') => {
+    setUserMode(mode);
   };
 
   return (
     <React.StrictMode>
-      {showSplash ? <SplashScreen onStart={handleStart} /> : <App />}
+      {userMode === null ? (
+        <SplashScreen onSelectMode={handleSelectMode} />
+      ) : (
+        <App userMode={userMode} />
+      )}
     </React.StrictMode>
   );
 };
