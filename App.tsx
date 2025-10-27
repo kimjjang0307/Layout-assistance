@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { DrawingCanvas } from './components/DrawingCanvas';
 import { CameraControls } from './components/CameraControls';
@@ -6,9 +7,11 @@ import { generateCharacterImage, analyzeScene, simpleChat, translateToEnglish, e
 import type { PoseImage, PerspectiveData, HistoryItem, ChatMessage, CameraOptions } from './types';
 import { GithubIcon, MagicWandIcon, CloseIcon, TrashIcon, ResetIcon, DownloadIcon, ZoomInIcon, ZoomOutIcon, ExpandIcon, CompareIcon, UserIcon as UserIconSingle, UsersIcon, SendIcon, LockIcon, UnlockIcon } from './components/Icons';
 import { SceneAnalysis } from './components/SceneAnalysis';
+import { MasterDashboard } from './components/MasterDashboard'; // Import the new MasterDashboard
 
 interface AppProps {
   userMode: 'master' | 'guest'; // Add userMode prop
+  onMasterLogout?: () => void; // Optional logout prop for master mode
 }
 
 const LoadingOverlay: React.FC = () => (
@@ -566,7 +569,7 @@ const compressImageForStorage = (imageUrl: string, quality = 0.9, maxSize = 1280
 };
 
 
-export default function App({ userMode }: AppProps) {
+export default function App({ userMode, onMasterLogout }: AppProps) { // Receive onMasterLogout prop
   const [poseImages, setPoseImages] = useState<PoseImage[]>([]);
   const [outputStyle, setOutputStyle] = useState<'genga_style' | 'clean_lineart'>('genga_style');
   const [workMode, setWorkMode] = useState<'single' | 'multi'>('single');
@@ -640,6 +643,9 @@ export default function App({ userMode }: AppProps) {
   const canvasChangeTimeout = useRef<number | null>(null);
   const isGeneratingRef = useRef(false);
   const mainContainerRef = useRef<HTMLElement>(null);
+
+  // Master mode specific state
+  const [activeMasterTab, setActiveMasterTab] = useState<'ai-layout' | 'dashboard'>('ai-layout');
 
 
   useEffect(() => {
@@ -1125,6 +1131,43 @@ export default function App({ userMode }: AppProps) {
           AI 애니메이션 레이아웃 어시스턴트 <span className="text-sm font-normal text-neutral-400">({userMode === 'master' ? '마스터 모드' : '게스트 모드'})</span>
         </h1>
         <div className="flex items-center gap-4">
+           {userMode === 'master' && (
+            <>
+              <div className="flex bg-neutral-700/70 p-1 rounded-lg space-x-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveMasterTab('ai-layout')}
+                  className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    activeMasterTab === 'ai-layout'
+                      ? 'bg-neutral-500 text-white shadow-sm'
+                      : 'text-neutral-300 hover:bg-neutral-600/50'
+                  }`}
+                >
+                  AI 레이아웃
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMasterTab('dashboard')}
+                  className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    activeMasterTab === 'dashboard'
+                      ? 'bg-neutral-500 text-white shadow-sm'
+                      : 'text-neutral-300 hover:bg-neutral-600/50'
+                  }`}
+                >
+                  마스터 대시보드
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={onMasterLogout} // Use the onMasterLogout prop
+                className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 px-3 py-1.5 bg-red-700 hover:bg-red-600 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                title="로그아웃"
+              >
+                <LockIcon />
+                로그아웃
+              </button>
+            </>
+          )}
            <button
             type="button"
             onClick={handleResetClick}
@@ -1146,172 +1189,179 @@ export default function App({ userMode }: AppProps) {
         ref={mainContainerRef}
         className="flex-grow grid p-4 sm:p-6 overflow-hidden"
         style={{
-          gridTemplateColumns: `${panelWidths[0]}fr auto ${panelWidths[1]}fr auto ${panelWidths[2]}fr`,
+          gridTemplateColumns: userMode === 'master' && activeMasterTab === 'dashboard' ? '1fr' : `${panelWidths[0]}fr auto ${panelWidths[1]}fr auto ${panelWidths[2]}fr`,
         }}
       >
-        {/* 입력 섹션 */}
-        <div className="flex flex-col gap-6 overflow-y-auto pr-2">
-          <div className="bg-[#282828] rounded-xl p-5 shadow-md border border-neutral-700/50">
-            <h2 className="text-lg font-semibold text-neutral-100 mb-3">1. 렌더링 스타일</h2>
-            <p className="text-sm text-neutral-400 mb-4">'원화 스타일'은 캐릭터 설정(Settei) 이미지의 화풍을 100% 복사-붙여넣기 한 것처럼 완벽히 동일한 스타일로 생성합니다. AI는 원작자의 모든 선 특징(굵기, 질감, 스타일)을 그대로 모방해야 합니다.</p>
-            <div className="flex bg-neutral-700/70 p-1 rounded-lg space-x-1">
-              <button
-                type="button"
-                onClick={() => setOutputStyle('genga_style')}
-                className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
-                  outputStyle === 'genga_style'
-                    ? 'bg-neutral-500 text-white shadow-sm'
-                    : 'text-neutral-300 hover:bg-neutral-600/50'
-                }`}
-              >
-                원화 스타일
-              </button>
-              <button
-                type="button"
-                onClick={() => setOutputStyle('clean_lineart')}
-                className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
-                  outputStyle === 'clean_lineart'
-                    ? 'bg-neutral-500 text-white shadow-sm'
-                    : 'text-neutral-300 hover:bg-neutral-600/50'
-                }`}
-              >
-                클린업 라인아트
-              </button>
-            </div>
-          </div>
-          <div className="bg-[#282828] rounded-xl p-5 shadow-md border border-neutral-700/50">
-            <h2 className="text-lg font-semibold text-neutral-100 mb-3">2. 작업 모드</h2>
-            <p className="text-sm text-neutral-400 mb-4">'싱글'은 한 캐릭터의 포즈에, '멀티'는 여러 캐릭터가 등장하는 복잡한 장면에 적합합니다.</p>
-            <div className="flex bg-neutral-700/70 p-1 rounded-lg space-x-1">
-              <button
-                type="button"
-                onClick={() => setWorkMode('single')}
-                className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
-                  workMode === 'single'
-                    ? 'bg-neutral-500 text-white shadow-sm'
-                    : 'text-neutral-300 hover:bg-neutral-600/50'
-                }`}
-              >
-                <UserIconSingle width={16} height={16} />
-                싱글 캐릭터
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkMode('multi')}
-                className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
-                  workMode === 'multi'
-                    ? 'bg-neutral-500 text-white shadow-sm'
-                    : 'text-neutral-300 hover:bg-neutral-600/50'
-                }`}
-              >
-                <UsersIcon width={16} height={16} />
-                멀티 캐릭터
-              </button>
-            </div>
-          </div>
-          <CameraControls
-            options={cameraOptions}
-            onChange={handleCameraChange}
-            onResetAll={handleCameraReset}
-          />
-        </div>
-
-        <ResizableHandle onMouseDown={(e) => handleResize(0, e.clientX, panelWidths)} />
-
-        {/* 포즈 그리기 섹션 */}
-        <div className="flex flex-col gap-6 overflow-y-auto pr-2">
-          <DrawingCanvas 
-            key={`canvas-${canvasResetKey}`}
-            title="4. 레이아웃 스케치" 
-            description="장면의 레이아웃을 스케치하세요. 각 레이어에 캐릭터의 설정(Settei) 이미지를 직접 업로드하고 포즈를 그립니다. 레이어 이름이 곧 캐릭터 이름이 됩니다." 
-            onCanvasChange={handleCanvasChange}
-            initialGlobalReferenceUrl={globalReferenceImage?.imageDataUrl}
-            editBaseImageUrl={editBaseImage?.imageDataUrl}
-          />
-           <div className="grid grid-cols-2 gap-6">
-                <SceneAnalysis
-                    chatHistory={analysisChatHistory}
-                    isLoading={isAnalyzing}
-                    error={analysisError}
-                    onAnalyze={handleAnalyzeScene}
-                    onContinueChat={handleContinueAnalysisChat}
-                    disabled={false}
-                />
-                <div className="bg-[#282828] rounded-xl p-5 shadow-md border border-neutral-700/50 flex flex-col">
-                    <h2 className="text-lg font-semibold text-neutral-100 mb-3">6. 연출 지시 (최종 프롬프트)</h2>
-                    <p className="text-sm text-neutral-400 mb-4">
-                        AI와의 대화와 별개로, 최종 이미지 생성에 항상 반영될 연출 지시사항입니다.
-                    </p>
-
-                    {/* Positive Prompt */}
-                    <div className="flex flex-col">
-                        <label htmlFor="positive-prompt" className="text-base font-medium text-neutral-200 mb-2">긍정적 프롬프트</label>
-                        <textarea
-                            id="positive-prompt"
-                            value={directiveInput}
-                            onChange={(e) => setDirectiveInput(e.target.value)}
-                            placeholder="연출 지시사항을 입력하세요... (예: 슬픈 표정으로 변경)"
-                            disabled={isLoading}
-                            className="w-full p-2 bg-neutral-700/80 border border-neutral-600/80 rounded-md text-neutral-200 placeholder-neutral-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none h-24"
-                        />
-                    </div>
-                    
-                    {/* Negative Prompt */}
-                    <div className="flex flex-col mt-4">
-                        <label htmlFor="negative-prompt" className="text-base font-medium text-neutral-200 mb-2">부정적 프롬프트</label>
-                        <textarea
-                            id="negative-prompt"
-                            value={negativeDirectiveInput}
-                            onChange={(e) => setNegativeDirectiveInput(e.target.value)}
-                            placeholder="제외할 요소를 입력하세요... (예: 6개의 손가락)"
-                            disabled={isLoading}
-                            className="w-full p-2 bg-neutral-700/80 border border-neutral-600/80 rounded-md text-neutral-200 placeholder-neutral-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none h-24"
-                        />
-                    </div>
+        {userMode === 'master' && activeMasterTab === 'dashboard' ? (
+          <MasterDashboard />
+        ) : (
+          <>
+            {/* 입력 섹션 */}
+            <div className="flex flex-col gap-6 overflow-y-auto pr-2">
+              <div className="bg-[#282828] rounded-xl p-5 shadow-md border border-neutral-700/50">
+                <h2 className="text-lg font-semibold text-neutral-100 mb-3">1. 렌더링 스타일</h2>
+                <p className="text-sm text-neutral-400 mb-4">'원화 스타일'은 캐릭터 설정(Settei) 이미지의 화풍을 100% 복사-붙여넣기 한 것처럼 완벽히 동일한 스타일로 생성합니다. AI는 원작자의 모든 선 특징(굵기, 질감, 스타일)을 그대로 모방해야 합니다.</p>
+                <div className="flex bg-neutral-700/70 p-1 rounded-lg space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => setOutputStyle('genga_style')}
+                    className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      outputStyle === 'genga_style'
+                        ? 'bg-neutral-500 text-white shadow-sm'
+                        : 'text-neutral-300 hover:bg-neutral-600/50'
+                    }`}
+                  >
+                    원화 스타일
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOutputStyle('clean_lineart')}
+                    className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      outputStyle === 'clean_lineart'
+                        ? 'bg-neutral-500 text-white shadow-sm'
+                        : 'text-neutral-300 hover:bg-neutral-600/50'
+                    }`}
+                  >
+                    클린업 라인아트
+                  </button>
                 </div>
-           </div>
-        </div>
-        
-        <ResizableHandle onMouseDown={(e) => handleResize(1, e.clientX, panelWidths)} />
+              </div>
+              <div className="bg-[#282828] rounded-xl p-5 shadow-md border border-neutral-700/50">
+                <h2 className="text-lg font-semibold text-neutral-100 mb-3">2. 작업 모드</h2>
+                <p className="text-sm text-neutral-400 mb-4">'싱글'은 한 캐릭터의 포즈에, '멀티'는 여러 캐릭터가 등장하는 복잡한 장면에 적합합니다.</p>
+                <div className="flex bg-neutral-700/70 p-1 rounded-lg space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => setWorkMode('single')}
+                    className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
+                      workMode === 'single'
+                        ? 'bg-neutral-500 text-white shadow-sm'
+                        : 'text-neutral-300 hover:bg-neutral-600/50'
+                    }`}
+                  >
+                    <UserIconSingle width={16} height={16} />
+                    싱글 캐릭터
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWorkMode('multi')}
+                    className={`w-full text-center px-4 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
+                      workMode === 'multi'
+                        ? 'bg-neutral-500 text-white shadow-sm'
+                        : 'text-neutral-300 hover:bg-neutral-600/50'
+                    }`}
+                  >
+                    <UsersIcon width={16} height={16} />
+                    멀티 캐릭터
+                  </button>
+                </div>
+              </div>
+              <CameraControls
+                options={cameraOptions}
+                onChange={handleCameraChange}
+                onResetAll={handleCameraReset}
+              />
+            </div>
 
-        {/* 생성 및 결과 섹션 */}
-        <div className="flex flex-col gap-6 overflow-y-auto pr-2">
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900/50 disabled:text-neutral-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-md"
-          >
-            {isLoading ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                생성 중...
-              </>
-            ) : (
-              '포즈생성기'
-            )}
-          </button>
-           <HistoryPanel
-            history={history}
-            onView={handleViewHistoryItem}
-            onCompare={handleSetComparisonImage}
-            onDelete={handleDeleteHistoryItem}
-          />
-          <GeneratedImage 
-            imageUrl={generatedImageUrl} 
-            comparisonImageUrl={comparisonImage?.imageUrl ?? null}
-            isLoading={isLoading} 
-            error={error} 
-            onView={handleViewImage}
-            onClearComparison={handleClearComparison}
-            onEnterEditMode={handleEnterEditMode}
-            onImageUpdate={setGeneratedImageUrl}
-          />
-        </div>
+            <ResizableHandle onMouseDown={(e) => handleResize(0, e.clientX, panelWidths)} />
+
+            {/* 포즈 그리기 섹션 */}
+            <div className="flex flex-col gap-6 overflow-y-auto pr-2">
+              <DrawingCanvas 
+                key={`canvas-${canvasResetKey}`}
+                title="4. 레이아웃 스케치" 
+                description="장면의 레이아웃을 스케치하세요. 각 레이어에 캐릭터의 설정(Settei) 이미지를 직접 업로드하고 포즈를 그립니다. 레이어 이름이 곧 캐릭터 이름이 됩니다." 
+                onCanvasChange={handleCanvasChange}
+                initialGlobalReferenceUrl={globalReferenceImage?.imageDataUrl}
+                editBaseImageUrl={editBaseImage?.imageDataUrl}
+              />
+              <div className="grid grid-cols-2 gap-6">
+                    <SceneAnalysis
+                        chatHistory={analysisChatHistory}
+                        isLoading={isAnalyzing}
+                        error={analysisError}
+                        onAnalyze={handleAnalyzeScene}
+                        onContinueChat={handleContinueAnalysisChat}
+                        disabled={false}
+                    />
+                    <div className="bg-[#282828] rounded-xl p-5 shadow-md border border-neutral-700/50 flex flex-col">
+                        <h2 className="text-lg font-semibold text-neutral-100 mb-3">6. 연출 지시 (최종 프롬프트)</h2>
+                        <p className="text-sm text-neutral-400 mb-4">
+                            AI와의 대화와 별개로, 최종 이미지 생성에 항상 반영될 연출 지시사항입니다.
+                        </p>
+
+                        {/* Positive Prompt */}
+                        <div className="flex flex-col">
+                            <label htmlFor="positive-prompt" className="text-base font-medium text-neutral-200 mb-2">긍정적 프롬프트</label>
+                            <textarea
+                                id="positive-prompt"
+                                value={directiveInput}
+                                onChange={(e) => setDirectiveInput(e.target.value)}
+                                placeholder="연출 지시사항을 입력하세요... (예: 슬픈 표정으로 변경)"
+                                disabled={isLoading}
+                                className="w-full p-2 bg-neutral-700/80 border border-neutral-600/80 rounded-md text-neutral-200 placeholder-neutral-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none h-24"
+                            />
+                        </div>
+                        
+                        {/* Negative Prompt */}
+                        <div className="flex flex-col mt-4">
+                            <label htmlFor="negative-prompt" className="text-base font-medium text-neutral-200 mb-2">부정적 프롬프트</label>
+                            <textarea
+                                id="negative-prompt"
+                                value={negativeDirectiveInput}
+                                onChange={(e) => setNegativeDirectiveInput(e.target.value)}
+                                placeholder="제외할 요소를 입력하세요... (예: 6개의 손가락)"
+                                disabled={isLoading}
+                                className="w-full p-2 bg-neutral-700/80 border border-neutral-600/80 rounded-md text-neutral-200 placeholder-neutral-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none h-24"
+                            />
+                        </div>
+                    </div>
+              </div>
+            </div>
+            
+            <ResizableHandle onMouseDown={(e) => handleResize(1, e.clientX, panelWidths)} />
+
+            {/* 생성 및 결과 섹션 */}
+            <div className="flex flex-col gap-6 overflow-y-auto pr-2">
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900/50 disabled:text-neutral-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-md"
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    생성 중...
+                  </>
+                ) : (
+                  '포즈생성기'
+                )}
+              </button>
+              <HistoryPanel
+                history={history}
+                onView={handleViewHistoryItem}
+                onCompare={handleSetComparisonImage}
+                onDelete={handleDeleteHistoryItem}
+              />
+              <GeneratedImage 
+                imageUrl={generatedImageUrl} 
+                comparisonImageUrl={comparisonImage?.imageUrl ?? null}
+                isLoading={isLoading} 
+                error={error} 
+                onView={handleViewImage}
+                onClearComparison={handleClearComparison}
+                onEnterEditMode={handleEnterEditMode}
+                onImageUpdate={setGeneratedImageUrl}
+              />
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
 }
+    

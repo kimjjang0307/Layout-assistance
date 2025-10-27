@@ -60,3 +60,12 @@ export interface CameraOptions {
   dolly: number;
   zoomLevel: number;
 }
+
+export type GuestStatus = 'pending' | 'allowed' | 'blocked';
+
+export interface GuestRecord {
+  id: string; // The guest's chosen ID (username)
+  ipAddress: string;
+  loginTime: string; // Last login attempt/request time
+  status: GuestStatus; // 'pending', 'allowed', 'blocked'
+}
