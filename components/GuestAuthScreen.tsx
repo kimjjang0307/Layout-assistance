@@ -1,20 +1,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { MagicWandIcon, LockIcon, UnlockIcon } from './Icons';
-// FIX: Import GuestRecord from types
 import { GuestStatus, GuestRecord } from '../types';
 
 interface GuestAuthScreenProps {
   onLoginSuccess: (guestId: string) => void;
-  currentGuestId: string | null; // Keep this to pre-fill the input
-  // currentStatus: GuestStatus | null; // REMOVE this prop, GuestAuthScreen will manage it internally
+  currentGuestId: string | null;
 }
 
-export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess, currentGuestId }) => { // Update props
+export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess, currentGuestId }) => {
   const [inputGuestId, setInputGuestId] = useState(currentGuestId || '');
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [isRequesting, setIsRequesting] = useState(false);
-  // New state to hold this specific guest's status, derived from master_guest_requests
   const [guestSpecificStatus, setGuestSpecificStatus] = useState<GuestStatus | null>(null); 
 
   const getStatusText = useCallback((status: GuestStatus | null) => {
@@ -46,11 +43,14 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
             } else if (guestSpecificStatus) {
               // If this guest's record was deleted by the master
               setGuestSpecificStatus(null);
-              // In this case, the RootComponent will also detect the missing guestId and clear it.
+              // The RootComponent will also detect the missing guestId and clear it.
+              // For robustness, clear guestId from localStorage here too if its record is gone
+              localStorage.removeItem('guest_id');
             }
           } else if (guestSpecificStatus) {
             // If all records were cleared by master
             setGuestSpecificStatus(null);
+            localStorage.removeItem('guest_id');
           }
         } catch (error) {
           console.error("Error checking guest status from master_guest_requests:", error);
@@ -58,12 +58,11 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
       }
     };
 
-    // Initial check and then poll
-    checkGuestStatus();
+    checkGuestStatus(); // Initial check
     const interval = setInterval(checkGuestStatus, 2000); // Poll every 2 seconds
 
     return () => clearInterval(interval);
-  }, [inputGuestId, guestSpecificStatus]); // Dependencies changed
+  }, [inputGuestId, guestSpecificStatus]);
 
   // Effect to handle status change messages and login
   useEffect(() => {
@@ -85,7 +84,16 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
     setIsRequesting(true);
     
     const guestIdTrimmed = inputGuestId.trim();
-    const now = new Date().toLocaleString();
+    const now = new Date().toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const clientIpAddress = window.location.hostname; // Using hostname as a client-side identifier
 
     try {
       // Retrieve master's list of guest requests
@@ -104,7 +112,7 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
         // Add new record
         masterGuestRequests.push({
           id: guestIdTrimmed,
-          ipAddress: '127.0.0.1', // Placeholder. In a real app, this would come from the server.
+          ipAddress: clientIpAddress,
           loginTime: now,
           status: 'pending' as GuestStatus,
         });

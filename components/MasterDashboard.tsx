@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserIcon, LockIcon, UnlockIcon, TrashIcon, ResetIcon, CloseIcon } from './Icons';
-import { GuestRecord, GuestStatus } from '../types'; // GuestRecord 및 GuestStatus import
+import { GuestRecord, GuestStatus } from '../types';
 
 // Dummy data for demonstration - now used only if localStorage is empty
 const initialDummyUserRecords: GuestRecord[] = [
@@ -23,7 +23,7 @@ export const MasterDashboard: React.FC = () => {
         const storedRecords = localStorage.getItem('master_guest_requests');
         if (storedRecords) {
           const parsedRecords: GuestRecord[] = JSON.parse(storedRecords);
-          // Deep comparison to avoid unnecessary state updates
+          // Only update state if records have actually changed to prevent unnecessary re-renders
           if (JSON.stringify(parsedRecords) !== JSON.stringify(userRecords)) {
             setUserRecords(parsedRecords);
           }
@@ -72,14 +72,12 @@ export const MasterDashboard: React.FC = () => {
       localStorage.setItem('master_guest_requests', JSON.stringify(updatedRecords)); // Save updated array
       return updatedRecords;
     });
-    // No need to clear global 'guest_id' or 'guest_status' as those are no longer used for status.
   }, []);
 
   const handleResetRecords = useCallback(() => {
     setUserRecords([]); // Clear all records in state
     localStorage.removeItem('master_guest_requests'); // Clear central storage
     setSearchTerm(''); // Clear search term
-    // No need to clear global 'guest_id' or 'guest_status'
   }, []);
 
   const handleClearPendingBlocked = useCallback(() => {
@@ -88,7 +86,6 @@ export const MasterDashboard: React.FC = () => {
       localStorage.setItem('master_guest_requests', JSON.stringify(updatedRecords)); // Save updated array
       return updatedRecords;
     });
-    // No need to clear global 'guest_id' or 'guest_status'
   }, []);
 
   const filteredRecords = userRecords.filter(record =>
@@ -126,7 +123,8 @@ export const MasterDashboard: React.FC = () => {
 
       <p className="text-neutral-400 text-sm mb-6">
         이 대시보드에서는 게스트 사용자들의 로그인 기록과 접근 권한을 관리할 수 있습니다.
-        (현재는 더미 데이터로 표시됩니다.)
+        <strong className="text-yellow-400"> 이 기능은 동일 브라우저 또는 동일 기기 내에서만 작동합니다.</strong>
+        다른 기기에서 요청하려면 중앙 서버가 필요하며, 이는 현재 앱 범위에 포함되지 않습니다.
       </p>
 
       <div className="mb-4">
@@ -148,7 +146,7 @@ export const MasterDashboard: React.FC = () => {
               <thead className="bg-neutral-700 sticky top-0">
                 <tr>
                   <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-300 uppercase tracking-wider">ID</th>
-                  <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-300 uppercase tracking-wider">IP 주소</th>
+                  <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-300 uppercase tracking-wider">클라이언트 호스트명</th>
                   <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-300 uppercase tracking-wider">최근 로그인 요청</th>
                   <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-300 uppercase tracking-wider">상태</th>
                   <th className="py-3 px-4 text-left text-xs font-semibold text-neutral-300 uppercase tracking-wider">액션</th>
