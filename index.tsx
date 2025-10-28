@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { SplashScreen } from './components/SplashScreen';
 import { GuestAuthScreen } from './components/GuestAuthScreen';
 import { MasterLoginScreen } from './components/MasterLoginScreen';
-import { GuestStatus } from './types';
+import { GuestStatus, GuestRecord } from './types'; // Import GuestRecord
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -15,19 +16,16 @@ if (!rootElement) {
 const RootComponent: React.FC = () => {
   const [userMode, setUserMode] = useState<'master' | 'guest' | null>(null);
   const [guestId, setGuestId] = useState<string | null>(null);
-  const [guestStatus, setGuestStatus] = useState<GuestStatus | null>(null);
+  // Renamed guestStatus to localGuestStatus to reflect it's specific to this guest instance
+  const [localGuestStatus, setLocalGuestStatus] = useState<GuestStatus | null>(null); 
   const [isMasterLoggedIn, setIsMasterLoggedIn] = useState<boolean>(false);
 
-  // Load guest and master status from localStorage on initial render
+  // Load guest ID and master status from localStorage on initial render
   useEffect(() => {
     try {
       const storedGuestId = localStorage.getItem('guest_id');
-      const storedGuestStatus = localStorage.getItem('guest_status');
       if (storedGuestId) {
         setGuestId(storedGuestId);
-      }
-      if (storedGuestStatus && ['pending', 'allowed', 'blocked'].includes(storedGuestStatus)) {
-        setGuestStatus(storedGuestStatus as GuestStatus);
       }
 
       const storedMasterLogin = localStorage.getItem('master_logged_in');
@@ -39,7 +37,7 @@ const RootComponent: React.FC = () => {
     }
   }, []);
 
-  // Update localStorage when guestId or guestStatus changes
+  // Update localStorage when guestId changes
   useEffect(() => {
     try {
       if (guestId) {
@@ -47,15 +45,11 @@ const RootComponent: React.FC = () => {
       } else {
         localStorage.removeItem('guest_id');
       }
-      if (guestStatus) {
-        localStorage.setItem('guest_status', guestStatus);
-      } else {
-        localStorage.removeItem('guest_status');
-      }
+      // Removed guestStatus from being directly saved here, as it's derived from master_guest_requests
     } catch (error) {
-      console.error("Failed to save guest status to localStorage:", error);
+      console.error("Failed to save guest ID to localStorage:", error);
     }
-  }, [guestId, guestStatus]);
+  }, [guestId]);
 
   // Update localStorage when master login status changes
   useEffect(() => {
@@ -82,7 +76,7 @@ const RootComponent: React.FC = () => {
 
   const handleGuestLoginSuccess = useCallback((id: string) => {
     setGuestId(id);
-    setGuestStatus('allowed');
+    // localGuestStatus will be updated by the polling effect, not directly here.
   }, []);
 
   const handleMasterLoginSuccess = useCallback(() => {
@@ -95,24 +89,37 @@ const RootComponent: React.FC = () => {
     setUserMode(null); // Return to splash screen after logout
   }, []);
 
-  // Poll localStorage for guest status updates (e.g., from master dashboard)
+  // Poll localStorage for master_guest_requests to update local guest status
   useEffect(() => {
-    const interval = setInterval(() => {
+    const fetchAndUpdateGuestStatus = () => {
       if (userMode === 'guest' && guestId) {
         try {
-          const updatedStatus = localStorage.getItem('guest_status') as GuestStatus;
-          // Only update if status has actually changed and is valid
-          if (updatedStatus && updatedStatus !== guestStatus && ['pending', 'allowed', 'blocked'].includes(updatedStatus)) {
-            setGuestStatus(updatedStatus);
+          const storedRecords = localStorage.getItem('master_guest_requests');
+          if (storedRecords) {
+            const allGuestRecords: GuestRecord[] = JSON.parse(storedRecords);
+            const thisGuestRecord = allGuestRecords.find(r => r.id === guestId);
+            if (thisGuestRecord && thisGuestRecord.status !== localGuestStatus) {
+              setLocalGuestStatus(thisGuestRecord.status);
+            } else if (!thisGuestRecord && localGuestStatus) {
+               // If the guest record was deleted by master, reset local status
+               setLocalGuestStatus(null);
+               setGuestId(null); // Also clear guestId to prompt re-request
+            }
+          } else if (localGuestStatus) {
+              // If master cleared all records
+              setLocalGuestStatus(null);
+              setGuestId(null);
           }
         } catch (error) {
-          console.error("Error polling guest status:", error);
+          console.error("Error polling master_guest_requests for guest status:", error);
         }
       }
-    }, 2000); // Poll every 2 seconds
+    };
+
+    const interval = setInterval(fetchAndUpdateGuestStatus, 2000); // Poll every 2 seconds
 
     return () => clearInterval(interval);
-  }, [userMode, guestId, guestStatus]);
+  }, [userMode, guestId, localGuestStatus]);
 
 
   let content;
@@ -125,14 +132,14 @@ const RootComponent: React.FC = () => {
       content = <MasterLoginScreen onLoginSuccess={handleMasterLoginSuccess} />;
     }
   } else { // userMode === 'guest'
-    if (guestStatus === 'allowed' && guestId) {
+    if (localGuestStatus === 'allowed' && guestId) { // Use localGuestStatus here
       content = <App userMode="guest" />;
     } else {
       content = (
         <GuestAuthScreen
           onLoginSuccess={handleGuestLoginSuccess}
           currentGuestId={guestId}
-          currentStatus={guestStatus}
+          // No longer passing currentStatus directly, GuestAuthScreen will manage it internally
         />
       );
     }
@@ -147,4 +154,3 @@ const RootComponent: React.FC = () => {
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(<RootComponent />);
-    

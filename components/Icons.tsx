@@ -50,7 +50,7 @@ export const DownloadIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}
 export const CompareIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><path d="M12 22V2"/><path d="m17 7-5 5-5-5"/><path d="m7 17 5-5 5 5"/></BaseIcon>;
 export const FieldGuideIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></BaseIcon>;
 export const SafeAreaIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><rect x="2" y="2" width="20" height="20" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></BaseIcon>;
-export const TargetIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></BaseIcon>;
+export const TargetIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></TargetIcon>;
 export const AxisIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><path d="M12 20V4"/><path d="m6 14 6 6 6-6"/><path d="M4 12h16"/></BaseIcon>;
 export const AngleIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><path d="M3 21V3h18"/><path d="M17 8a4 4 0 1 0-8 0"/></BaseIcon>;
 export const CircleIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><circle cx="12" cy="12" r="10"/></BaseIcon>;

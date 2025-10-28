@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { MagicWandIcon, LockIcon, UnlockIcon } from './Icons';
 // FIX: Import GuestRecord from types
@@ -5,14 +6,16 @@ import { GuestStatus, GuestRecord } from '../types';
 
 interface GuestAuthScreenProps {
   onLoginSuccess: (guestId: string) => void;
-  currentGuestId: string | null;
-  currentStatus: GuestStatus | null;
+  currentGuestId: string | null; // Keep this to pre-fill the input
+  // currentStatus: GuestStatus | null; // REMOVE this prop, GuestAuthScreen will manage it internally
 }
 
-export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess, currentGuestId, currentStatus }) => {
+export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess, currentGuestId }) => { // Update props
   const [inputGuestId, setInputGuestId] = useState(currentGuestId || '');
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [isRequesting, setIsRequesting] = useState(false);
+  // New state to hold this specific guest's status, derived from master_guest_requests
+  const [guestSpecificStatus, setGuestSpecificStatus] = useState<GuestStatus | null>(null); 
 
   const getStatusText = useCallback((status: GuestStatus | null) => {
     switch (status) {
@@ -27,15 +30,51 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
     }
   }, []);
 
+  // Effect to continuously check this guest's status from master_guest_requests
   useEffect(() => {
-    setStatusMessage(getStatusText(currentStatus));
-    if (currentStatus === 'allowed' && currentGuestId) {
+    const checkGuestStatus = () => {
+      if (inputGuestId.trim()) {
+        try {
+          const storedRecords = localStorage.getItem('master_guest_requests');
+          if (storedRecords) {
+            const allGuestRecords: GuestRecord[] = JSON.parse(storedRecords);
+            const thisGuestRecord = allGuestRecords.find(r => r.id === inputGuestId.trim());
+            if (thisGuestRecord) {
+              if (thisGuestRecord.status !== guestSpecificStatus) {
+                setGuestSpecificStatus(thisGuestRecord.status);
+              }
+            } else if (guestSpecificStatus) {
+              // If this guest's record was deleted by the master
+              setGuestSpecificStatus(null);
+              // In this case, the RootComponent will also detect the missing guestId and clear it.
+            }
+          } else if (guestSpecificStatus) {
+            // If all records were cleared by master
+            setGuestSpecificStatus(null);
+          }
+        } catch (error) {
+          console.error("Error checking guest status from master_guest_requests:", error);
+        }
+      }
+    };
+
+    // Initial check and then poll
+    checkGuestStatus();
+    const interval = setInterval(checkGuestStatus, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [inputGuestId, guestSpecificStatus]); // Dependencies changed
+
+  // Effect to handle status change messages and login
+  useEffect(() => {
+    setStatusMessage(getStatusText(guestSpecificStatus));
+    if (guestSpecificStatus === 'allowed' && inputGuestId.trim()) {
       const timer = setTimeout(() => {
-        onLoginSuccess(currentGuestId);
+        onLoginSuccess(inputGuestId.trim());
       }, 2000); // 2초 후 로그인 성공 처리
       return () => clearTimeout(timer);
     }
-  }, [currentStatus, currentGuestId, onLoginSuccess, getStatusText]);
+  }, [guestSpecificStatus, inputGuestId, onLoginSuccess, getStatusText]);
 
   const handleRequestAccess = () => {
     if (!inputGuestId.trim()) {
@@ -44,34 +83,39 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
     }
     
     setIsRequesting(true);
-    // Simulate API call to master to register guest ID
-    // In a real app, this would send a request to a server.
-    // For this client-side demo, we directly update localStorage for master's view
-    const newGuestRecord: GuestRecord = {
-      id: inputGuestId.trim(),
-      ipAddress: '127.0.0.1', // Placeholder for actual IP
-      loginTime: new Date().toLocaleString(),
-      status: 'pending' as GuestStatus,
-    };
+    
+    const guestIdTrimmed = inputGuestId.trim();
+    const now = new Date().toLocaleString();
 
     try {
-      // Update master's list of guest requests
+      // Retrieve master's list of guest requests
       const storedRequests = localStorage.getItem('master_guest_requests');
       let masterGuestRequests: GuestRecord[] = storedRequests ? JSON.parse(storedRequests) : [];
       
-      const existingIndex = masterGuestRequests.findIndex(r => r.id === newGuestRecord.id);
+      const existingIndex = masterGuestRequests.findIndex(r => r.id === guestIdTrimmed);
       if (existingIndex !== -1) {
-        masterGuestRequests[existingIndex] = { ...masterGuestRequests[existingIndex], ...newGuestRecord, status: 'pending' };
+        // Update existing record with new login time and set status to pending
+        masterGuestRequests[existingIndex] = { 
+          ...masterGuestRequests[existingIndex], 
+          loginTime: now, 
+          status: 'pending' // Always set to pending on re-request
+        };
       } else {
-        masterGuestRequests.push(newGuestRecord);
+        // Add new record
+        masterGuestRequests.push({
+          id: guestIdTrimmed,
+          ipAddress: '127.0.0.1', // Placeholder. In a real app, this would come from the server.
+          loginTime: now,
+          status: 'pending' as GuestStatus,
+        });
       }
       localStorage.setItem('master_guest_requests', JSON.stringify(masterGuestRequests));
       
-      // Update this guest's local status
-      localStorage.setItem('guest_id', newGuestRecord.id);
-      localStorage.setItem('guest_status', 'pending');
+      // Store this guest's ID locally for persistence
+      localStorage.setItem('guest_id', guestIdTrimmed);
       
-      setStatusMessage(getStatusText('pending'));
+      setStatusMessage(getStatusText('pending')); // Temporarily show pending locally
+      setGuestSpecificStatus('pending'); // Update local state immediately
       setIsRequesting(false);
     } catch (error) {
       console.error("게스트 접근 요청 중 오류 발생:", error);
@@ -98,13 +142,13 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
             onChange={(e) => setInputGuestId(e.target.value)}
             placeholder="사용자 ID를 입력하세요 (예: Guest001)"
             className="w-full p-3 bg-neutral-700 border border-neutral-600 rounded-md text-neutral-200 placeholder-neutral-500 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isRequesting || currentStatus === 'allowed'}
+            disabled={isRequesting || guestSpecificStatus === 'allowed'}
             aria-label="게스트 사용자 ID"
           />
           <button
             onClick={handleRequestAccess}
             className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 flex items-center justify-center mx-auto gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isRequesting || currentStatus === 'allowed'}
+            disabled={isRequesting || guestSpecificStatus === 'allowed'}
             aria-label="접근 요청"
           >
             {isRequesting ? (
@@ -119,8 +163,8 @@ export const GuestAuthScreen: React.FC<GuestAuthScreenProps> = ({ onLoginSuccess
         </div>
 
         <p className={`text-lg font-semibold ${
-          currentStatus === 'allowed' ? 'text-green-400' :
-          currentStatus === 'blocked' ? 'text-red-400' :
+          guestSpecificStatus === 'allowed' ? 'text-green-400' :
+          guestSpecificStatus === 'blocked' ? 'text-red-400' :
           'text-neutral-300'
         }`}>
           상태: {statusMessage}

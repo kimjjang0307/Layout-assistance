@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserIcon, LockIcon, UnlockIcon, TrashIcon, ResetIcon } from './Icons';
+import { UserIcon, LockIcon, UnlockIcon, TrashIcon, ResetIcon, CloseIcon } from './Icons';
 import { GuestRecord, GuestStatus } from '../types'; // GuestRecord 및 GuestStatus import
 
-// Dummy data for demonstration
+// Dummy data for demonstration - now used only if localStorage is empty
 const initialDummyUserRecords: GuestRecord[] = [
   { id: 'guest_001', ipAddress: '192.168.1.100', loginTime: '2024-08-01 10:30:00', status: 'allowed' },
   { id: 'guest_002', ipAddress: '10.0.0.5', loginTime: '2024-08-01 11:15:23', status: 'pending' },
@@ -15,61 +16,79 @@ export const MasterDashboard: React.FC = () => {
   const [userRecords, setUserRecords] = useState<GuestRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Load records from localStorage on mount
+  // Effect to load records and poll for updates
   useEffect(() => {
-    try {
-      const storedRecords = localStorage.getItem('master_guest_requests');
-      if (storedRecords) {
-        setUserRecords(JSON.parse(storedRecords));
-      } else {
-        setUserRecords(initialDummyUserRecords);
-        localStorage.setItem('master_guest_requests', JSON.stringify(initialDummyUserRecords));
+    const loadAndPollRecords = () => {
+      try {
+        const storedRecords = localStorage.getItem('master_guest_requests');
+        if (storedRecords) {
+          const parsedRecords: GuestRecord[] = JSON.parse(storedRecords);
+          // Deep comparison to avoid unnecessary state updates
+          if (JSON.stringify(parsedRecords) !== JSON.stringify(userRecords)) {
+            setUserRecords(parsedRecords);
+          }
+        } else {
+          // If localStorage is empty, and userRecords is also empty, initialize with dummy data and save it.
+          // This ensures the dashboard isn't always empty if it's the first time running.
+          if (userRecords.length === 0) { 
+            setUserRecords(initialDummyUserRecords);
+            localStorage.setItem('master_guest_requests', JSON.stringify(initialDummyUserRecords));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load guest records from localStorage:", error);
+        // Fallback to dummy data if loading from localStorage fails AND current state is empty
+        if (userRecords.length === 0) {
+          setUserRecords(initialDummyUserRecords);
+        }
       }
-    } catch (error) {
-      console.error("Failed to load guest records from localStorage:", error);
-      setUserRecords(initialDummyUserRecords); // Fallback to dummy data
-    }
-  }, []);
+    };
 
-  // Save records to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('master_guest_requests', JSON.stringify(userRecords));
-    } catch (error) {
-      console.error("Failed to save guest records to localStorage:", error);
-    }
-  }, [userRecords]);
+    loadAndPollRecords(); // Load on initial mount
+
+    const interval = setInterval(loadAndPollRecords, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, [userRecords]); // Dependency array to trigger effect if userRecords changes externally (e.g., manual localStorage edit)
+
 
   const handleToggleAllow = useCallback((id: string) => {
-    setUserRecords(prevRecords =>
-      prevRecords.map(record => {
+    setUserRecords(prevRecords => {
+      const updatedRecords = prevRecords.map(record => {
         if (record.id === id) {
           const newStatus: GuestStatus = record.status === 'allowed' ? 'blocked' : 'allowed';
-          // Simulate server-side update to individual guest's status
-          localStorage.setItem('guest_status', newStatus);
           return { ...record, status: newStatus };
         }
         return record;
-      })
-    );
+      });
+      localStorage.setItem('master_guest_requests', JSON.stringify(updatedRecords)); // Save updated array
+      return updatedRecords;
+    });
   }, []);
 
   const handleDeleteRecord = useCallback((id: string) => {
-    setUserRecords(prevRecords => prevRecords.filter(record => record.id !== id));
-    // Also remove from individual guest's localStorage if it was the currently active guest
-    if (localStorage.getItem('guest_id') === id) {
-        localStorage.removeItem('guest_id');
-        localStorage.removeItem('guest_status');
-    }
+    setUserRecords(prevRecords => {
+      const updatedRecords = prevRecords.filter(record => record.id !== id);
+      localStorage.setItem('master_guest_requests', JSON.stringify(updatedRecords)); // Save updated array
+      return updatedRecords;
+    });
+    // No need to clear global 'guest_id' or 'guest_status' as those are no longer used for status.
   }, []);
 
   const handleResetRecords = useCallback(() => {
-    setUserRecords(initialDummyUserRecords);
-    localStorage.setItem('master_guest_requests', JSON.stringify(initialDummyUserRecords));
-    setSearchTerm(''); // 검색어 초기화
-    // Reset any individual guest status that might be stored
-    localStorage.removeItem('guest_id');
-    localStorage.removeItem('guest_status');
+    setUserRecords([]); // Clear all records in state
+    localStorage.removeItem('master_guest_requests'); // Clear central storage
+    setSearchTerm(''); // Clear search term
+    // No need to clear global 'guest_id' or 'guest_status'
+  }, []);
+
+  const handleClearPendingBlocked = useCallback(() => {
+    setUserRecords(prevRecords => {
+      const updatedRecords = prevRecords.filter(record => record.status === 'allowed');
+      localStorage.setItem('master_guest_requests', JSON.stringify(updatedRecords)); // Save updated array
+      return updatedRecords;
+    });
+    // No need to clear global 'guest_id' or 'guest_status'
   }, []);
 
   const filteredRecords = userRecords.filter(record =>
@@ -85,14 +104,24 @@ export const MasterDashboard: React.FC = () => {
           <UserIcon width="24" height="24" />
           마스터 대시보드
         </h2>
-        <button
-          onClick={handleResetRecords}
-          className="flex items-center gap-2 px-4 py-2 bg-neutral-600 hover:bg-neutral-500 text-neutral-100 font-medium rounded-md transition-colors text-sm"
-          title="모든 기록 초기화"
-        >
-          <ResetIcon width="16" height="16" />
-          모든 기록 초기화
-        </button>
+        <div className="flex gap-2">
+            <button
+              onClick={handleClearPendingBlocked}
+              className="flex items-center gap-2 px-4 py-2 bg-yellow-700 hover:bg-yellow-600 text-neutral-100 font-medium rounded-md transition-colors text-sm"
+              title="모든 대기/차단 기록 삭제"
+            >
+              <CloseIcon width="16" height="16" />
+              대기/차단 요청 삭제
+            </button>
+            <button
+              onClick={handleResetRecords}
+              className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 text-neutral-100 font-medium rounded-md transition-colors text-sm"
+              title="모든 기록 초기화"
+            >
+              <ResetIcon width="16" height="16" />
+              모든 기록 초기화
+            </button>
+        </div>
       </div>
 
       <p className="text-neutral-400 text-sm mb-6">
