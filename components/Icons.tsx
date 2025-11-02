@@ -75,8 +75,3 @@ export const SaveIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><pa
 export const BotIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></BaseIcon>;
 export const ImageIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></BaseIcon>;
 export const CropIcon: React.FC<IconProps> = (props) => <BaseIcon {...props}><path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" /></BaseIcon>;
-export const KeyIcon: React.FC<IconProps> = (props) => (
-  <BaseIcon {...props}>
-    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-  </BaseIcon>
-);

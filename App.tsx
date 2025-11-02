@@ -1,11 +1,12 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { DrawingCanvas } from './components/DrawingCanvas';
 import { CameraControls } from './components/CameraControls';
 import { GeneratedImage } from './components/GeneratedImage';
 import { generateCharacterImage, analyzeScene, simpleChat, translateToEnglish, editImageWithChat } from './services/geminiService';
 import type { PoseImage, PerspectiveData, HistoryItem, ChatMessage, CameraOptions } from './types';
-import { GithubIcon, MagicWandIcon, CloseIcon, TrashIcon, ResetIcon, DownloadIcon, ZoomInIcon, ZoomOutIcon, ExpandIcon, CompareIcon, UserIcon as UserIconSingle, UsersIcon, SendIcon, LockIcon, UnlockIcon, KeyIcon } from './components/Icons';
+import { GithubIcon, MagicWandIcon, CloseIcon, TrashIcon, ResetIcon, DownloadIcon, ZoomInIcon, ZoomOutIcon, ExpandIcon, CompareIcon, UserIcon as UserIconSingle, UsersIcon, SendIcon, LockIcon, UnlockIcon } from './components/Icons';
 import { SceneAnalysis } from './components/SceneAnalysis';
 
 const LoadingOverlay: React.FC = () => (
@@ -634,30 +635,9 @@ export default function App() {
   const [directiveInput, setDirectiveInput] = useState('');
   const [negativeDirectiveInput, setNegativeDirectiveInput] = useState('배경 삭제, 컬러링 금지,창작금지.콘티 랜더링 금지');
 
-  // API Key State
-  const [isKeySelected, setIsKeySelected] = useState(false);
-
   const canvasChangeTimeout = useRef<number | null>(null);
   const isGeneratingRef = useRef(false);
   const mainContainerRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const checkKey = async () => {
-      // @ts-ignore
-      if (window.aistudio) {
-        // @ts-ignore
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setIsKeySelected(hasKey);
-      }
-    };
-    checkKey();
-  }, []);
-
-  const handleSelectApiKey = async () => {
-    // @ts-ignore
-    await window.aistudio.openSelectKey();
-    setIsKeySelected(true);
-  };
 
   useEffect(() => {
     try {
@@ -862,14 +842,7 @@ export default function App() {
         setAnalysisChatHistory([{ role: 'model', parts: [{ text: analysisReport }] }]);
     } catch (err) {
         console.error(err);
-        let errorMessage = err instanceof Error ? err.message : '장면 분석 중 알 수 없는 오류가 발생했습니다.';
-        if (err instanceof Error && err.message.includes('Requested entity was not found.')) {
-            errorMessage = 'API 키를 찾을 수 없습니다. 다시 선택해주세요.';
-            setIsKeySelected(false);
-            // @ts-ignore
-            await window.aistudio.openSelectKey();
-            setIsKeySelected(true);
-        }
+        const errorMessage = err instanceof Error ? err.message : '장면 분석 중 알 수 없는 오류가 발생했습니다.';
         setAnalysisError(errorMessage);
     } finally {
         setIsAnalyzing(false);
@@ -957,14 +930,7 @@ export default function App() {
 
         } catch (err) {
             console.error(err);
-            let errorMessage = err instanceof Error ? err.message : '이미지 수정 중 알 수 없는 오류가 발생했습니다.';
-            if (err instanceof Error && err.message.includes('Requested entity was not found.')) {
-                errorMessage = 'API 키를 찾을 수 없습니다. 다시 선택해주세요.';
-                setIsKeySelected(false);
-                // @ts-ignore
-                await window.aistudio.openSelectKey();
-                setIsKeySelected(true);
-            }
+            const errorMessage = err instanceof Error ? err.message : '이미지 수정 중 알 수 없는 오류가 발생했습니다.';
             setAnalysisError(errorMessage);
             setAnalysisChatHistory(prev => [...prev, { role: 'model', parts: [{ text: `오류: ${errorMessage}` }] }]);
         } finally {
@@ -976,14 +942,7 @@ export default function App() {
             setAnalysisChatHistory(prev => [...prev, { role: 'model', parts: [{ text: responseText }] }]);
         } catch (err) {
             console.error(err);
-            let errorMessage = err instanceof Error ? err.message : '대화 중 알 수 없는 오류가 발생했습니다.';
-            if (err instanceof Error && err.message.includes('Requested entity was not found.')) {
-                errorMessage = 'API 키를 찾을 수 없습니다. 다시 선택해주세요.';
-                setIsKeySelected(false);
-                // @ts-ignore
-                await window.aistudio.openSelectKey();
-                setIsKeySelected(true);
-            }
+            const errorMessage = err instanceof Error ? err.message : '대화 중 알 수 없는 오류가 발생했습니다.';
             setAnalysisError(errorMessage);
             setAnalysisChatHistory(prev => [...prev, { role: 'model', parts: [{ text: `오류: ${errorMessage}` }] }]);
         } finally {
@@ -1128,13 +1087,7 @@ export default function App() {
       console.error(err);
       let errorMessage = '이미지 생성 중 알 수 없는 오류가 발생했습니다.';
       if (err instanceof Error) {
-        if (err.message.includes('Requested entity was not found.')) {
-            errorMessage = 'API 키를 찾을 수 없습니다. 다시 선택해주세요.';
-            setIsKeySelected(false);
-            // @ts-ignore
-            await window.aistudio.openSelectKey();
-            setIsKeySelected(true);
-        } else if (err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('quota')) {
+        if (err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('quota')) {
           errorMessage = 'API 사용량 한도를 초과했습니다. 잠시 후 다시 시도해 주세요. 문제가 계속되면 Google Cloud에서 API 할당량을 확인하거나 결제 설정을 검토해야 할 수 있습니다.';
         } else {
           errorMessage = err.message;
@@ -1169,15 +1122,6 @@ export default function App() {
           AI 애니메이션 레이아웃 어시스턴트
         </h1>
         <div className="flex items-center gap-4">
-           <button
-            type="button"
-            onClick={handleSelectApiKey}
-            className="text-neutral-200 hover:text-white transition-colors flex items-center gap-2 px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 rounded-md text-sm font-medium"
-            title="API 키 선택"
-          >
-            <KeyIcon />
-            API 키 설정
-          </button>
            <button
             type="button"
             onClick={handleResetClick}
