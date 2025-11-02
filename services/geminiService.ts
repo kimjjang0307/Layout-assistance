@@ -13,9 +13,8 @@ const TEXT_MODEL = 'gemini-2.5-flash';
 const IMAGE_EDITING_MODEL = 'gemini-2.5-flash-image';
 
 // INITIALIZE GEMINI CLIENT
-// @google/genai START
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-// @google/genai END
+const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 
 // TYPE DEFINITIONS
 interface GenerateImageParams {
@@ -236,6 +235,7 @@ export const translateToEnglish = async (text: string): Promise<string> => {
         return "";
     }
     try {
+        const ai = getAiClient();
         // @google/genai START
         const response = await ai.models.generateContent({
             model: TEXT_MODEL,
@@ -280,6 +280,7 @@ export const generateCharacterImage = async (params: GenerateImageParams): Promi
     
     const parts = await buildInterlinkedPromptParts(finalParams);
     
+    const ai = getAiClient();
     // @google/genai START
     const response = await ai.models.generateContent({
         model: IMAGE_EDITING_MODEL,
@@ -315,6 +316,7 @@ Analyze the following scene components:
 `
     });
     
+    const ai = getAiClient();
     // @google/genai START
     const response = await ai.models.generateContent({
         model: TEXT_MODEL,
@@ -353,6 +355,7 @@ export const simpleChat = async (history: ChatMessage[]): Promise<string> => {
         parts: msg.parts.map(p => ({ text: p.text })),
     }));
     
+    const ai = getAiClient();
     // @google/genai START
     const response = await ai.models.generateContent({
         model: TEXT_MODEL,
@@ -411,6 +414,7 @@ export const editImageWithChat = async (params: EditImageWithChatParams): Promis
         parts.push(dataUrlToGenerativePart(params.sketchImageUrl));
     }
 
+    const ai = getAiClient();
     // @google/genai START
     const response = await ai.models.generateContent({
         model: IMAGE_EDITING_MODEL,
